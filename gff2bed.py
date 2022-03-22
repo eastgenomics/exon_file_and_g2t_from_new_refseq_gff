@@ -70,9 +70,10 @@ def write_bed(gff_data, gff, output_name=None):
         output_name (str, optional): Output name. Defaults to None.
     """
 
-    path = Path(gff)
-
     if not output_name:
+        path = Path(gff)
+        name = Path(path.name.split(".")[0])
+
         suffixes_to_keep = [
             ele
             for ele in path.suffixes
@@ -80,9 +81,11 @@ def write_bed(gff_data, gff, output_name=None):
         ] + [".bed"]
 
         for suffix in suffixes_to_keep:
-            path = path.with_suffix(suffix)
+            name = str(name) + suffix
 
-    with open(path, "w") as f:
+        output_name = name
+
+    with open(output_name, "w") as f:
         for data in gff_data:
             f.write(data)
 
