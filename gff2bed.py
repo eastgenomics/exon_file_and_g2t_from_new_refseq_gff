@@ -49,10 +49,9 @@ def parse_gff(gff, flank):
                 if len(hgnc_list) == 1:
                     # format of the hgnc id in attributes column: HGNC:HGNC:1
                     # get the only element in the hgnc list
-                    # split on ":" i.e. ["HGNC", "HGNC", "1"]
-                    # get the last 2 elements i.e. get the actual HGNC id
-                    # rejoin the HGNC id using the ":"
-                    hgnc_id = ":".join(hgnc_list[0].split(":", 1)[-1])
+                    # split on ":" i.e. ["HGNC", "HGNC:1"]
+                    # get the last element i.e. get the actual HGNC id
+                    hgnc_id = hgnc_list[0].split(":", 1)[-1]
 
                     transcript = ','.join(exon.attributes["transcript_id"])
                     exon_nb = exon.id.split("-")[-1]
@@ -61,6 +60,12 @@ def parse_gff(gff, flank):
                         f"{refseq_chrom[exon.chrom]}\t"
                         f"{exon.start - 1 - flank}\t{exon.end + flank}\t"
                         f"{hgnc_id}\t{transcript}\t{exon_nb}\n"
+                    )
+                else:
+                    print(
+                        f"{refseq_chrom[exon.chrom]}\t"
+                        f"{exon.start}\t{exon.end}\t"
+                        f"{exon.attributes['Dbxref']}"
                     )
 
     return gff_data
@@ -77,8 +82,7 @@ def write_bed(gff_data, gff, output_name=None):
 
     if not output_name:
         path = Path(gff)
-        name = Path(path.name.split(".")[0])
-        name = str(name).replace(".gff", "").replace(".gz", "")
+        name = str(path.name).replace(".gff", "").replace(".gz", "")
         output_name = f"{name}.bed"
 
     with open(output_name, "w") as f:
