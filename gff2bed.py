@@ -52,7 +52,7 @@ def parse_gff(gff, flank):
                     # split on ":" i.e. ["HGNC", "HGNC", "1"]
                     # get the last 2 elements i.e. get the actual HGNC id
                     # rejoin the HGNC id using the ":"
-                    hgnc_id = ":".join(hgnc_list[0].split(":")[-2:])
+                    hgnc_id = ":".join(hgnc_list[0].split(":", 1)[-1])
 
                     transcript = ','.join(exon.attributes["transcript_id"])
                     exon_nb = exon.id.split("-")[-1]
@@ -78,17 +78,8 @@ def write_bed(gff_data, gff, output_name=None):
     if not output_name:
         path = Path(gff)
         name = Path(path.name.split(".")[0])
-
-        suffixes_to_keep = [
-            ele
-            for ele in path.suffixes
-            if ele not in [".gff", ".gz"]
-        ] + [".bed"]
-
-        for suffix in suffixes_to_keep:
-            name = str(name) + suffix
-
-        output_name = name
+        name.replace(".gff", "").replace(".gz", "")
+        output_name = f"{name}.bed"
 
     with open(output_name, "w") as f:
         for data in gff_data:
