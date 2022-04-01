@@ -47,6 +47,11 @@ def parse_gff(gff, flank):
 
                 # if there is none or multiple we don't want it
                 if len(hgnc_list) == 1:
+                    # format of the hgnc id in attributes column: HGNC:HGNC:1
+                    # get the only element in the hgnc list
+                    # split on ":" i.e. ["HGNC", "HGNC", "1"]
+                    # get the last 2 elements i.e. get the actual HGNC id
+                    # rejoin the HGNC id using the ":"
                     hgnc_id = ":".join(hgnc_list[0].split(":")[-2:])
 
                     transcript = ','.join(exon.attributes["transcript_id"])
