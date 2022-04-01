@@ -78,7 +78,7 @@ def write_bed(gff_data, gff, output_name=None):
     if not output_name:
         path = Path(gff)
         name = Path(path.name.split(".")[0])
-        name.replace(".gff", "").replace(".gz", "")
+        name = str(name).replace(".gff", "").replace(".gz", "")
         output_name = f"{name}.bed"
 
     with open(output_name, "w") as f:
