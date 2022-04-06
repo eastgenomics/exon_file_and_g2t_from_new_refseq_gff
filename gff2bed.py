@@ -61,12 +61,13 @@ def parse_gff(gff, flank):
                         f"{exon.start - 1 - flank}\t{exon.end + flank}\t"
                         f"{hgnc_id}\t{transcript}\t{exon_nb}\n"
                     )
-                else:
-                    print(
-                        f"{refseq_chrom[exon.chrom]}\t"
-                        f"{exon.start}\t{exon.end}\t"
-                        f"{exon.attributes['Dbxref']}"
-                    )
+        # used for testing
+        #         else:
+        #             print(exon)
+        #     else:
+        #         print(exon)
+        # else:
+        #     print(exon)
 
     return gff_data
 
