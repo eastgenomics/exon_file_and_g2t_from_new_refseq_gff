@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+import sqlite3
 
 import gffutils
 
@@ -16,94 +17,195 @@ refseq_chrom = {
 }
 
 
-def parse_gff(gff, flank):
-    """ Parse the gff data and get exons data
+def parse_gff(gff):
+    """ Parse the gff data
 
     Args:
         gff (str): Path to GFF
-        flank (int): Flank to add in the exon start/end
 
     Returns:
-        list: List of exons to write into BED format
+        FeatureDB: FeatureDB object for the gff
     """
 
-    gff_data = []
+    # try to create sqlite db
+    try:
+        db = gffutils.create_db(
+            gff, "VEP_refseq.sqlite", verbose=True,
+            merge_strategy="create_unique"
+        )
+    except sqlite3.OperationalError as e:
+        # use existing db
+        db = gffutils.FeatureDB("VEP_refseq.sqlite")
 
-    db = gffutils.create_db(
-        gff, ":memory:", verbose=True, merge_strategy="create_unique"
-    )
-
-    for exon in db.features_of_type("exon"):
-        # check if the exon has a transcript_id in the attributes column
-        if "transcript_id" in exon.attributes:
-            # check if the exon chrom is a refseq chrom
-            if exon.chrom in refseq_chrom:
-                # get the hgnc id from the attributes column
-                hgnc_list = [
-                    i
-                    for i in exon.attributes["Dbxref"]
-                    if "HGNC" in i
-                ]
-
-                # if there is none or multiple we don't want it
-                if len(hgnc_list) == 1:
-                    # format of the hgnc id in attributes column: HGNC:HGNC:1
-                    # get the only element in the hgnc list
-                    # split on ":" i.e. ["HGNC", "HGNC:1"]
-                    # get the last element i.e. get the actual HGNC id
-                    hgnc_id = hgnc_list[0].split(":", 1)[-1]
-
-                    transcript = ','.join(exon.attributes["transcript_id"])
-                    exon_nb = exon.id.split("-")[-1]
-
-                    gff_data.append(
-                        f"{refseq_chrom[exon.chrom]}\t"
-                        f"{exon.start - 1 - flank}\t{exon.end + flank}\t"
-                        f"{hgnc_id}\t{transcript}\t{exon_nb}\n"
-                    )
-        # used for testing
-        #         else:
-        #             print(exon)
-        #     else:
-        #         print(exon)
-        # else:
-        #     print(exon)
-
-    return gff_data
+    return db
 
 
-def write_bed(gff_data, gff, output_name=None):
-    """ Write bed with exon data
+def get_parents2features(db, feature_type):
+    """ Get a dict of parent of feature type with its children
 
     Args:
-        gff_data (list): List with exon data
-        gff (str): Path to gff file to extract default output name
+        db (gffutils.FeatureDB): FeatureDB object containing gff data
+        feature_type (str): Feature type to get parents for
+
+    Returns:
+        dict: Dict of parents to feature of specified type
+    """
+
+    print(f"Getting {feature_type}...")
+
+    parents2features = {}
+
+    for feature in db.features_of_type(feature_type):
+        # check if feature has multiple parents
+        if len(feature.attributes["Parent"]) != 1:
+            print(feature)
+            continue
+
+        # filter features that don't have one HGNC id or have contig chrom
+        if filter_out_features(feature):
+            parent = feature.attributes["Parent"][0]
+            parents2features.setdefault(parent, []).append(feature)
+
+    return parents2features
+
+
+def infer_exon_number(parents2cds, parents2exons):
+    """ Infer exon number for cds
+
+    Args:
+        parents2cds (dict): Parent2cds dict
+        parents2exons (dict): Parent2exon dict
+
+    Returns:
+        dict: cds2exon dict
+    """
+
+    cds_w_exon_nb = {}
+
+    for parent in parents2cds:
+        for cds in parents2cds[parent]:
+            for exon in parents2exons[parent]:
+                # overlap exon: ---------
+                #         cds : -------
+                #         cds :    --------
+                #         cds :        ------
+                if cds.start >= exon.start and cds.start < exon.end:
+                    exon_nb = exon.id.split("-")[-1]
+
+                # exon:    ---------
+                # cds :      -------
+                # cds :  -------
+                # cds : -----
+                elif cds.end <= exon.end and cds.end > exon.start:
+                    exon_nb = exon.id.split("-")[-1]
+
+                else:
+                    exon_nb = None
+
+                if exon_nb is not None:
+                    cds_w_exon_nb.setdefault(cds, []).append(exon)
+
+            # check if exons for cds and check that there is only one
+            if cds in cds_w_exon_nb and len(cds_w_exon_nb[cds]) != 1:
+                print("multiple exons in cds")
+                print(cds)
+                for e in cds_w_exon_nb[cds]:
+                    print(e)
+                exit()
+
+    return cds_w_exon_nb
+
+
+def filter_out_features(feature):
+    """ Filter out features that have:
+        - contig chrom
+        - have no or multiple HGNC ids
+
+    Args:
+        feature (gffutils.Feature): Feature object
+
+    Returns:
+        bool: Whether feature get filtered or not
+    """
+
+    # check if the feature chrom is a refseq chrom
+    if feature.chrom not in refseq_chrom:
+        return False
+
+    # get the hgnc id from the attributes column
+    hgnc_list = [
+        i
+        for i in feature.attributes["Dbxref"]
+        if "HGNC" in i
+    ]
+
+    # if there is none or multiple we don't want it
+    if len(hgnc_list) != 1:
+        return False
+
+    return True
+
+
+def write_tsv(db, data, gff, flank, output_name=None):
+    """ Write tsv
+
+    Args:
+        db (gffutils.FeatureDB): FeatureDB object
+        data (dict): cds2exon dict
+        gff (str): Name of gff file for default name of output tsv
+        flank (int): Flank to add to regions. Default is 0
         output_name (str, optional): Output name. Defaults to None.
     """
+
+    print("Writing...")
 
     if not output_name:
         path = Path(gff)
         name = str(path.name).replace(".gff", "").replace(".gz", "")
-        output_name = f"{name}.bed"
+        output_name = f"{name}.tsv"
 
     with open(output_name, "w") as f:
-        for data in gff_data:
-            f.write(data)
+        for feature in data:
+            hgnc_list = [
+                i
+                for i in feature.attributes["Dbxref"]
+                if "HGNC" in i
+            ]
+            # format of the hgnc id in attributes column: HGNC:HGNC:1
+            # get the only element in the hgnc list
+            # split on ":" i.e. ["HGNC", "HGNC:1"]
+            # get the last element i.e. get the actual HGNC id
+            hgnc_id = hgnc_list[0].split(":", 1)[-1]
+
+            # get the parent id and extract transcript name from it
+            parent = db[feature.attributes["Parent"][0]]
+            transcript = parent.id.split("-")[1]
+
+            feature_nb = data[feature][0].id.split("-")[-1]
+
+            f.write(
+                f"{refseq_chrom[feature.chrom]}\t"
+                f"{feature.start - 1 - flank}\t{feature.end + flank}\t"
+                f"{hgnc_id}\t{transcript}\t{feature_nb}\n"
+            )
 
 
 def main(gff, flank, output_name):
-    gff_data = parse_gff(gff, flank)
-    write_bed(gff_data, gff, output_name)
+    gff_db = parse_gff(gff)
+    parents2exons = get_parents2features(gff_db, "exon")
+    parents2cds = get_parents2features(gff_db, "CDS")
+    cds_exon_nb = infer_exon_number(parents2cds, parents2exons)
+    write_tsv(gff_db, cds_exon_nb, gff, flank, output_name)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("gff", help="Refseq GFF file to parse")
     parser.add_argument(
-        "-f", "--flank", default=0, help="Flank to add the exons"
+        "-f", "--flank", default=0, help="Flank to add the features"
     )
     parser.add_argument(
-        "-o", "--output_name", help="Name of the output bed file"
+        "-o", "--output_name", help="Name of the output tsv file"
     )
     args = parser.parse_args()
     main(args.gff, args.flank, args.output_name)
