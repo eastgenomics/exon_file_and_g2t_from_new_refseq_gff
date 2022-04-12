@@ -61,6 +61,12 @@ def get_parents2features(db, feature_type):
             print(feature)
             continue
 
+        # filter out some CDS because their parents were 
+        # C_gene_segment/V_gene_segment, causing the transcript names to be
+        # stuff like TRGV8 and TRDC
+        if db[feature.attributes["Parent"][0]].featuretype != "mRNA":
+            continue
+
         # filter features that don't have one HGNC id or have contig chrom
         if filter_out_features(feature):
             parent = feature.attributes["Parent"][0]
@@ -89,14 +95,14 @@ def infer_exon_number(parents2cds, parents2exons):
                 #         cds : -------
                 #         cds :    --------
                 #         cds :        ------
-                if cds.start >= exon.start and cds.start < exon.end:
+                if cds.start >= exon.start and cds.start <= exon.end:
                     exon_nb = exon.id.split("-")[-1]
 
                 # exon:    ---------
                 # cds :      -------
                 # cds :  -------
                 # cds : -----
-                elif cds.end <= exon.end and cds.end > exon.start:
+                elif cds.end <= exon.end and cds.end >= exon.start:
                     exon_nb = exon.id.split("-")[-1]
 
                 else:
@@ -109,6 +115,7 @@ def infer_exon_number(parents2cds, parents2exons):
             if cds in cds_w_exon_nb and len(cds_w_exon_nb[cds]) != 1:
                 print("multiple exons in cds")
                 print(cds)
+
                 for e in cds_w_exon_nb[cds]:
                     print(e)
                 exit()
@@ -202,7 +209,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("gff", help="Refseq GFF file to parse")
     parser.add_argument(
-        "-f", "--flank", default=0, help="Flank to add the features"
+        "-f", "--flank", default=0, type=int, help="Flank to add the features"
     )
     parser.add_argument(
         "-o", "--output_name", help="Name of the output tsv file"
