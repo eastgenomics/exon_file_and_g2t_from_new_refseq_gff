@@ -2,6 +2,8 @@
 
 Script to convert refseq GFF to TSV using CDS.
 
+Coordinates get converted from 1-based to 0-based format.
+
 Only getting NC chromosomes i.e. `NC_` and not:
 
 - NT_ --> Genomic Contig or scaffold, clone-based or WGSa
