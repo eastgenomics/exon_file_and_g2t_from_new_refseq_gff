@@ -13,7 +13,7 @@ refseq_chrom = {
     "NC_000013.10": "13", "NC_000014.8": "14", "NC_000015.9": "15",
     "NC_000016.9": "16", "NC_000017.10": "17", "NC_000018.9": "18",
     "NC_000019.9": "19", "NC_000020.10": "20", "NC_000021.8": "21",
-    "NC_000022.10": "22", "NC_000023.10": "X", "NC_000024.9": "Y"
+    "NC_000022.10": "22", "NC_000023.10": "X"
 }
 
 
@@ -85,6 +85,8 @@ def infer_exon_number(parents2cds, parents2exons):
     Returns:
         dict: cds2exon dict
     """
+
+    print("Infering exon number for the CDS...")
 
     cds_w_exon_nb = {}
 
@@ -164,12 +166,12 @@ def write_tsv(db, data, gff, flank, output_name=None):
         output_name (str, optional): Output name. Defaults to None.
     """
 
-    print("Writing...")
-
     if not output_name:
         path = Path(gff)
         name = str(path.name).replace(".gff", "").replace(".gz", "")
         output_name = f"{name}.tsv"
+
+    print(f"Writing in {output_name}...")
 
     with open(output_name, "w") as f:
         for feature in data:
