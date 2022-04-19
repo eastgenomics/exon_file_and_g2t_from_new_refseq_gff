@@ -61,7 +61,7 @@ def get_parents2features(db, feature_type):
             print(feature)
             continue
 
-        # filter out some CDS because their parents were 
+        # filter out some CDS because their parents were
         # C_gene_segment/V_gene_segment, causing the transcript names to be
         # stuff like TRGV8 and TRDC
         if db[feature.attributes["Parent"][0]].featuretype != "mRNA":
@@ -189,7 +189,6 @@ def write_tsv(db, data, gff, flank, output_name=None):
             # get the parent id and extract transcript name from it
             parent = db[feature.attributes["Parent"][0]]
             transcript = parent.id.split("-")[1]
-
             feature_nb = data[feature][0].id.split("-")[-1]
 
             f.write(
