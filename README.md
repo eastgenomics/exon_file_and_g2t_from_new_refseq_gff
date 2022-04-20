@@ -19,11 +19,7 @@ CDS not gathered:
 Tested only with a Refseq gff file
 
 ```bash
-# get all CDS with prelimenary filtering
 python gff2tsv.py ${gff_file} [ -f ${flank} -o ${output_name} ]
-
-# remove duplicated exons from output of gff2tsv.py and save it in new file
-./remove_duplicated_exons.sh ${output_from_gff2tsv.py}
 ```
 
 ## Outputs
