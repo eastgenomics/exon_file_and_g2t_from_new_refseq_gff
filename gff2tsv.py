@@ -3,6 +3,8 @@ from pathlib import Path
 import sqlite3
 
 import gffutils
+import pandas as pd
+
 
 # replace refseq chrom by "normal" chrom names
 refseq_chrom = {
@@ -13,7 +15,7 @@ refseq_chrom = {
     "NC_000013.10": "13", "NC_000014.8": "14", "NC_000015.9": "15",
     "NC_000016.9": "16", "NC_000017.10": "17", "NC_000018.9": "18",
     "NC_000019.9": "19", "NC_000020.10": "20", "NC_000021.8": "21",
-    "NC_000022.10": "22", "NC_000023.10": "X", "NC_000024.9": "Y"
+    "NC_000022.10": "22", "NC_000023.10": "X"
 }
 
 
@@ -61,6 +63,12 @@ def get_parents2features(db, feature_type):
             print(feature)
             continue
 
+        # filter out some CDS because their parents were
+        # C_gene_segment/V_gene_segment, causing the transcript names to be
+        # stuff like TRGV8 and TRDC
+        if db[feature.attributes["Parent"][0]].featuretype != "mRNA":
+            continue
+
         # filter features that don't have one HGNC id or have contig chrom
         if filter_out_features(feature):
             parent = feature.attributes["Parent"][0]
@@ -80,6 +88,8 @@ def infer_exon_number(parents2cds, parents2exons):
         dict: cds2exon dict
     """
 
+    print("Infering exon number for the CDS...")
+
     cds_w_exon_nb = {}
 
     for parent in parents2cds:
@@ -89,14 +99,14 @@ def infer_exon_number(parents2cds, parents2exons):
                 #         cds : -------
                 #         cds :    --------
                 #         cds :        ------
-                if cds.start >= exon.start and cds.start < exon.end:
+                if cds.start >= exon.start and cds.start <= exon.end:
                     exon_nb = exon.id.split("-")[-1]
 
                 # exon:    ---------
                 # cds :      -------
                 # cds :  -------
                 # cds : -----
-                elif cds.end <= exon.end and cds.end > exon.start:
+                elif cds.end <= exon.end and cds.end >= exon.start:
                     exon_nb = exon.id.split("-")[-1]
 
                 else:
@@ -109,6 +119,7 @@ def infer_exon_number(parents2cds, parents2exons):
             if cds in cds_w_exon_nb and len(cds_w_exon_nb[cds]) != 1:
                 print("multiple exons in cds")
                 print(cds)
+
                 for e in cds_w_exon_nb[cds]:
                     print(e)
                 exit()
@@ -146,7 +157,40 @@ def filter_out_features(feature):
     return True
 
 
-def write_tsv(db, data, gff, flank, output_name=None):
+def get_transcripts_to_remove(db, data):
+    """ Get the transcripts to remove because of duplicated exons
+
+    Args:
+        db (FeatureDB object): Feature DB object of the GFF
+        data (dict): Dict of cds to exons
+
+    Returns:
+        list: List of transcripts to remove
+    """
+
+    print("Gathering transcripts to remove...")
+
+    list_of_transcripts_exons = []
+
+    for feature in data:
+        # get the parent id and extract transcript name from it
+        parent = db[feature.attributes["Parent"][0]]
+        transcript = parent.id.split("-")[1]
+        feature_nb = data[feature][0].id.split("-")[-1]
+
+        # get all transcripts+exons
+        list_of_transcripts_exons.append({
+            "transcript": transcript, "exon_nb": feature_nb
+        })
+
+    df = pd.DataFrame(list_of_transcripts_exons)
+    # get duplicated exons and get the corresponding transcripts into a list
+    transcripts_to_remove = df[df.duplicated()]["transcript"].to_list()
+
+    return transcripts_to_remove
+
+
+def write_tsv(db, data, transcripts_to_remove, gff, flank, output_name=None):
     """ Write tsv
 
     Args:
@@ -157,12 +201,12 @@ def write_tsv(db, data, gff, flank, output_name=None):
         output_name (str, optional): Output name. Defaults to None.
     """
 
-    print("Writing...")
-
     if not output_name:
         path = Path(gff)
         name = str(path.name).replace(".gff", "").replace(".gz", "")
         output_name = f"{name}.tsv"
+
+    print(f"Writing in {output_name}...")
 
     with open(output_name, "w") as f:
         for feature in data:
@@ -181,13 +225,14 @@ def write_tsv(db, data, gff, flank, output_name=None):
             parent = db[feature.attributes["Parent"][0]]
             transcript = parent.id.split("-")[1]
 
-            feature_nb = data[feature][0].id.split("-")[-1]
+            if transcript not in transcripts_to_remove:
+                feature_nb = data[feature][0].id.split("-")[-1]
 
-            f.write(
-                f"{refseq_chrom[feature.chrom]}\t"
-                f"{feature.start - 1 - flank}\t{feature.end + flank}\t"
-                f"{hgnc_id}\t{transcript}\t{feature_nb}\n"
-            )
+                f.write(
+                    f"{refseq_chrom[feature.chrom]}\t"
+                    f"{feature.start - 1 - flank}\t{feature.end + flank}\t"
+                    f"{hgnc_id}\t{transcript}\t{feature_nb}\n"
+                )
 
 
 def main(gff, flank, output_name):
@@ -195,14 +240,17 @@ def main(gff, flank, output_name):
     parents2exons = get_parents2features(gff_db, "exon")
     parents2cds = get_parents2features(gff_db, "CDS")
     cds_exon_nb = infer_exon_number(parents2cds, parents2exons)
-    write_tsv(gff_db, cds_exon_nb, gff, flank, output_name)
+    transcripts_to_remove = get_transcripts_to_remove(gff_db, cds_exon_nb)
+    write_tsv(
+        gff_db, cds_exon_nb, transcripts_to_remove, gff, flank, output_name
+    )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("gff", help="Refseq GFF file to parse")
     parser.add_argument(
-        "-f", "--flank", default=0, help="Flank to add the features"
+        "-f", "--flank", default=0, type=int, help="Flank to add the features"
     )
     parser.add_argument(
         "-o", "--output_name", help="Name of the output tsv file"
