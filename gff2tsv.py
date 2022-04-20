@@ -223,7 +223,7 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, output_name=None):
             parent = db[feature.attributes["Parent"][0]]
             transcript = parent.id.split("-")[1]
 
-            if transcript in transcripts_to_remove:
+            if transcript not in transcripts_to_remove:
                 feature_nb = data[feature][0].id.split("-")[-1]
 
                 f.write(
