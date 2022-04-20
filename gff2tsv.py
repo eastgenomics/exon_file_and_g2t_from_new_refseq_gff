@@ -168,6 +168,8 @@ def get_transcripts_to_remove(db, data):
         list: List of transcripts to remove
     """
 
+    print("Gathering transcripts to remove...")
+
     list_of_transcripts_exons = []
 
     for feature in data:
