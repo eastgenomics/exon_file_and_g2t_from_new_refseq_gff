@@ -1,6 +1,6 @@
 # gff2tsv
 
-Suite of scripts to convert refseq GFF to TSV using CDS.
+Script to convert refseq GFF to TSV using CDS.
 
 Info on the file:
 
