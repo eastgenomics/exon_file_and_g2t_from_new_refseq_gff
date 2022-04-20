@@ -3,6 +3,8 @@ from pathlib import Path
 import sqlite3
 
 import gffutils
+import pandas as pd
+
 
 # replace refseq chrom by "normal" chrom names
 refseq_chrom = {
@@ -155,7 +157,38 @@ def filter_out_features(feature):
     return True
 
 
-def write_tsv(db, data, gff, flank, output_name=None):
+def get_duplicated_exons(db, data):
+    """ Get the transcripts to remove because of duplicated exons
+
+    Args:
+        db (FeatureDB object): Feature DB object of the GFF
+        data (dict): Dict of cds to exons
+
+    Returns:
+        list: List of transcripts to remove
+    """
+
+    list_of_transcripts_exons = []
+
+    for feature in data:
+        # get the parent id and extract transcript name from it
+        parent = db[feature.attributes["Parent"][0]]
+        transcript = parent.id.split("-")[1]
+        feature_nb = data[feature][0].id.split("-")[-1]
+
+        # get all transcripts+exons
+        list_of_transcripts_exons.append({
+            "transcript": transcript, "exon_nb": feature_nb
+        })
+
+    df = pd.DataFrame(list_of_transcripts_exons)
+    # get duplicated exons and get the corresponding transcripts into a list
+    transcripts_to_remove = df[df.duplicated()]["transcript"].to_list()
+
+    return transcripts_to_remove
+
+
+def write_tsv(db, data, transcripts_to_remove, gff, flank, output_name=None):
     """ Write tsv
 
     Args:
@@ -189,13 +222,15 @@ def write_tsv(db, data, gff, flank, output_name=None):
             # get the parent id and extract transcript name from it
             parent = db[feature.attributes["Parent"][0]]
             transcript = parent.id.split("-")[1]
-            feature_nb = data[feature][0].id.split("-")[-1]
 
-            f.write(
-                f"{refseq_chrom[feature.chrom]}\t"
-                f"{feature.start - 1 - flank}\t{feature.end + flank}\t"
-                f"{hgnc_id}\t{transcript}\t{feature_nb}\n"
-            )
+            if transcript in transcripts_to_remove:
+                feature_nb = data[feature][0].id.split("-")[-1]
+
+                f.write(
+                    f"{refseq_chrom[feature.chrom]}\t"
+                    f"{feature.start - 1 - flank}\t{feature.end + flank}\t"
+                    f"{hgnc_id}\t{transcript}\t{feature_nb}\n"
+                )
 
 
 def main(gff, flank, output_name):
@@ -203,7 +238,10 @@ def main(gff, flank, output_name):
     parents2exons = get_parents2features(gff_db, "exon")
     parents2cds = get_parents2features(gff_db, "CDS")
     cds_exon_nb = infer_exon_number(parents2cds, parents2exons)
-    write_tsv(gff_db, cds_exon_nb, gff, flank, output_name)
+    transcripts_to_remove = get_duplicated_exons(gff_db, cds_exon_nb)
+    write_tsv(
+        gff_db, cds_exon_nb, transcripts_to_remove, gff, flank, output_name
+    )
 
 
 if __name__ == "__main__":
