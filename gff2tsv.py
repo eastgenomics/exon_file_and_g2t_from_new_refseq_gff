@@ -157,7 +157,7 @@ def filter_out_features(feature):
     return True
 
 
-def get_duplicated_exons(db, data):
+def get_transcripts_to_remove(db, data):
     """ Get the transcripts to remove because of duplicated exons
 
     Args:
@@ -238,7 +238,7 @@ def main(gff, flank, output_name):
     parents2exons = get_parents2features(gff_db, "exon")
     parents2cds = get_parents2features(gff_db, "CDS")
     cds_exon_nb = infer_exon_number(parents2cds, parents2exons)
-    transcripts_to_remove = get_duplicated_exons(gff_db, cds_exon_nb)
+    transcripts_to_remove = get_transcripts_to_remove(gff_db, cds_exon_nb)
     write_tsv(
         gff_db, cds_exon_nb, transcripts_to_remove, gff, flank, output_name
     )
