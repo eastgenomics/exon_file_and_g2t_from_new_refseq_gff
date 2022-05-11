@@ -11,8 +11,22 @@ CDS not gathered:
 
 - NT_ --> Genomic Contig or scaffold, clone-based or WGSa
 - NW_ --> Genomic Contig or scaffold, primarily WGSa
-- Removing Y chromosome CDSes
-- Removing duplicated exons
+- Removing Y chromosome CDSes because of transcripts spanning X and Y chromosomes causing exons to be duplicated:
+  - NM_176786.2
+  - NM_178129.5
+- Removing duplicated exons:
+  - NM_001134939.1
+  - NM_001172437.2
+  - NM_001184961.1
+  - NM_001301020.1
+  - NM_001301302.1
+  - NM_001301371.1
+  - NM_002537.3
+  - NM_004152.3
+  - NM_015068.3
+  - NM_016178.2
+- Mitochondrial genes:
+  - NC_012920.1
 
 ## How to run
 
