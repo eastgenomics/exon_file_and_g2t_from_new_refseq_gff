@@ -15,7 +15,7 @@ refseq_chrom = {
     "NC_000013.10": "13", "NC_000014.8": "14", "NC_000015.9": "15",
     "NC_000016.9": "16", "NC_000017.10": "17", "NC_000018.9": "18",
     "NC_000019.9": "19", "NC_000020.10": "20", "NC_000021.8": "21",
-    "NC_000022.10": "22", "NC_000023.10": "X"
+    "NC_000022.10": "22", "NC_000023.10": "X", "NC_000024.9": "Y"
 }
 
 
@@ -183,9 +183,12 @@ def get_transcripts_to_remove(db, data):
             "transcript": transcript, "exon_nb": feature_nb
         })
 
-    df = pd.DataFrame(list_of_transcripts_exons)
-    # get duplicated exons and get the corresponding transcripts into a list
-    transcripts_to_remove = df[df.duplicated()]["transcript"].to_list()
+    if list_of_transcripts_exons:
+        df = pd.DataFrame(list_of_transcripts_exons)
+        # get duplicated exons and get the corresponding transcripts into a list
+        transcripts_to_remove = df[df.duplicated()]["transcript"].to_list()
+    else:
+        transcripts_to_remove = []
 
     return transcripts_to_remove
 
