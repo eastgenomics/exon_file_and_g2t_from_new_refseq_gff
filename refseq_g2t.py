@@ -201,8 +201,16 @@ def write_refseq_g2t(refseq_data, nirvana_data):
                         nirvana_transcript = sorted([
                             tx for tx in nirvana_data[gene]
                             if tx.startswith(transcript_base)
-                        ], reverse=True)
-                        clinical_transcript, canonical = nirvana_data[gene][nirvana_transcript[0]]
+                        ])
+
+                        # get the nirvana transcript version which is the
+                        # clinical transcript
+                        for nirvana_tx in nirvana_transcript:
+                            clinical_transcript, canonical = nirvana_data[gene][nirvana_tx]
+
+                            if clinical_transcript == "clinical_transcript":
+                                break
+
                     else:
                         clinical_transcript = "not_clinical_transcript"
                         canonical = "not_canonical"
