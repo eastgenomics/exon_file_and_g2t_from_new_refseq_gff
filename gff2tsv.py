@@ -186,7 +186,7 @@ def get_transcripts_to_remove(db, data):
     if list_of_transcripts_exons:
         df = pd.DataFrame(list_of_transcripts_exons)
         # get duplicated exons and get the corresponding transcripts into a list
-        transcripts_to_remove = df[df.duplicated()]["transcript"].to_list()
+        transcripts_to_remove = set(df[df.duplicated()]["transcript"].to_list())
     else:
         transcripts_to_remove = []
 
@@ -236,6 +236,15 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, output_name=None):
                     f"{feature.start - 1 - flank}\t{feature.end + flank}\t"
                     f"{hgnc_id}\t{transcript}\t{feature_nb}\n"
                 )
+            else:
+                # some duplicated transcripts span X and Y, final decision is
+                # to keep the X copy of the transcript
+                if refseq_chrom[feature.chrom] == "X":
+                    f.write(
+                        f"{refseq_chrom[feature.chrom]}\t"
+                        f"{feature.start - 1 - flank}\t{feature.end + flank}\t"
+                        f"{hgnc_id}\t{transcript}\t{feature_nb}\n"
+                    )
 
 
 def main(gff, flank, output_name):
