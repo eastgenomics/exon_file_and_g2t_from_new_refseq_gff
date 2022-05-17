@@ -3,6 +3,7 @@ from pathlib import Path
 import sqlite3
 
 import gffutils
+from natsort import natsorted
 import pandas as pd
 
 
@@ -209,42 +210,51 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, output_name=None):
         name = str(path.name).replace(".gff", "").replace(".gz", "")
         output_name = f"{name}.tsv"
 
+    data_to_write = []
+
+    print("Sorting data...")
+
+    for feature in data:
+        hgnc_list = [
+            i
+            for i in feature.attributes["Dbxref"]
+            if "HGNC" in i
+        ]
+        # format of the hgnc id in attributes column: HGNC:HGNC:1
+        # get the only element in the hgnc list
+        # split on ":" i.e. ["HGNC", "HGNC:1"]
+        # get the last element i.e. get the actual HGNC id
+        hgnc_id = hgnc_list[0].split(":", 1)[-1]
+
+        # get the parent id and extract transcript name from it
+        parent = db[feature.attributes["Parent"][0]]
+        transcript = parent.id.split("-")[1]
+
+        if transcript not in transcripts_to_remove:
+            feature_nb = data[feature][0].id.split("-")[-1]
+
+            data_to_write.append([
+                refseq_chrom[feature.chrom], feature.start - 1 - flank,
+                feature.end + flank, hgnc_id, transcript, feature_nb
+            ])
+        else:
+            # some duplicated transcripts span X and Y, final decision is
+            # to keep the X copy of the transcript
+            if refseq_chrom[feature.chrom] == "X":
+                data_to_write.append([
+                    refseq_chrom[feature.chrom], feature.start - 1 - flank,
+                    feature.end + flank, hgnc_id, transcript, feature_nb
+                ])
+
+    sorted_data = natsorted(data_to_write, key=lambda x: (x[0], x[1], x[2]))
+
     print(f"Writing in {output_name}...")
 
     with open(output_name, "w") as f:
-        for feature in data:
-            hgnc_list = [
-                i
-                for i in feature.attributes["Dbxref"]
-                if "HGNC" in i
-            ]
-            # format of the hgnc id in attributes column: HGNC:HGNC:1
-            # get the only element in the hgnc list
-            # split on ":" i.e. ["HGNC", "HGNC:1"]
-            # get the last element i.e. get the actual HGNC id
-            hgnc_id = hgnc_list[0].split(":", 1)[-1]
-
-            # get the parent id and extract transcript name from it
-            parent = db[feature.attributes["Parent"][0]]
-            transcript = parent.id.split("-")[1]
-
-            if transcript not in transcripts_to_remove:
-                feature_nb = data[feature][0].id.split("-")[-1]
-
-                f.write(
-                    f"{refseq_chrom[feature.chrom]}\t"
-                    f"{feature.start - 1 - flank}\t{feature.end + flank}\t"
-                    f"{hgnc_id}\t{transcript}\t{feature_nb}\n"
-                )
-            else:
-                # some duplicated transcripts span X and Y, final decision is
-                # to keep the X copy of the transcript
-                if refseq_chrom[feature.chrom] == "X":
-                    f.write(
-                        f"{refseq_chrom[feature.chrom]}\t"
-                        f"{feature.start - 1 - flank}\t{feature.end + flank}\t"
-                        f"{hgnc_id}\t{transcript}\t{feature_nb}\n"
-                    )
+        for line in sorted_data:
+            str_line = [str(l) for l in line]
+            f.write("\t".join(str_line))
+            f.write("\n")
 
 
 def main(gff, flank, output_name):
