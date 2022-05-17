@@ -246,6 +246,7 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, output_name=None):
                     feature.end + flank, hgnc_id, transcript, feature_nb
                 ])
 
+    # sort data by chrom, start, end
     sorted_data = natsorted(data_to_write, key=lambda x: (x[0], x[1], x[2]))
 
     print(f"Writing in {output_name}...")
