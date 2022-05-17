@@ -8,6 +8,7 @@ Info on the file:
 
 - coordinates get converted from 1-based to 0-based format.
 - exon number is infered using cds and exon coordinates (any overlap size)
+- the output IS NOT SORTED
 
 CDS not gathered:
 
