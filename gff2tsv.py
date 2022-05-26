@@ -241,6 +241,8 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, output_name=None):
             # some duplicated transcripts span X and Y, final decision is
             # to keep the X copy of the transcript
             if refseq_chrom[feature.chrom] == "X":
+                feature_nb = data[feature][0].id.split("-")[-1]
+
                 data_to_write.append([
                     refseq_chrom[feature.chrom], feature.start - 1 - flank,
                     feature.end + flank, hgnc_id, transcript, feature_nb
