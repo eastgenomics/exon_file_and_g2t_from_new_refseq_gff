@@ -89,7 +89,6 @@ def get_parents2features(db, feature_type, refseq_chrom):
     for feature in db.features_of_type(feature_type):
         # check if feature has multiple parents
         if len(feature.attributes["Parent"]) != 1:
-            print(feature)
             continue
 
         # filter out some CDS because their parents were
@@ -117,7 +116,7 @@ def infer_exon_number(parents2cds, parents2exons):
         dict: cds2exon dict
     """
 
-    print("Infering exon number for the CDS...")
+    print("Inferring exon number for the CDS...")
 
     cds_w_exon_nb = {}
 
@@ -242,7 +241,6 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, refseq_chrom, output_
     print("Sorting data...")
 
     for feature in data:
-        print(feature)
         hgnc_list = [
             i
             for i in feature.attributes["Dbxref"]
@@ -260,15 +258,15 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, refseq_chrom, output_
 
         if transcript not in transcripts_to_remove:
             feature_nb = data[feature][0].id.split("-")[-1]
-            print(data_to_write)
+
             data_to_write.append([
-                refseq_chrom[feature.seqid], feature.start - 1 - flank,
+                refseq_chrom[feature.chrom], feature.start - 1 - flank,
                 feature.end + flank, hgnc_id, transcript, feature_nb
             ])
         else:
             # some duplicated transcripts span X and Y, final decision is
             # to keep the X copy of the transcript
-            if refseq_chrom[feature.seqid] == "X":
+            if refseq_chrom[feature.chrom] == "X":
                 feature_nb = data[feature][0].id.split("-")[-1]
 
                 data_to_write.append([
@@ -296,8 +294,8 @@ def main(build, gff, flank, output_name):
     cds_exon_nb = infer_exon_number(parents2cds, parents2exons)
     transcripts_to_remove = get_transcripts_to_remove(gff_db, cds_exon_nb)
     write_tsv(
-        gff_db, cds_exon_nb, transcripts_to_remove, gff, flank, output_name,
-        refseq_chrom
+        gff_db, cds_exon_nb, transcripts_to_remove, gff, flank, refseq_chrom,
+        output_name
     )
 
 
