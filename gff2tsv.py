@@ -86,7 +86,7 @@ def get_parents2features(db, feature_type, refseq_chrom):
     print(f"Getting {feature_type}...")
 
     parents2features = {}
-    
+
     for feature in db.features_of_type(feature_type):
         # check if feature has multiple parents
         if len(feature.attributes["Parent"]) != 1:
