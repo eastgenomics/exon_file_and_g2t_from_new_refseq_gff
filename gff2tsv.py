@@ -179,6 +179,7 @@ def filter_out_features(feature, refseq_chrom):
         for i in feature.attributes["Dbxref"]
         if "HGNC" in i
     ]
+
     # if there is none or multiple we don't want it
     if len(hgnc_list) != 1:
         return False
