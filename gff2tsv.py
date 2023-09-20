@@ -153,7 +153,7 @@ def infer_exon_number(parents2cds, parents2exons):
                 for e in cds_w_exon_nb[cds]:
                     print(e)
                 exit()
-    print(len(cds_w_exon_nb.keys()))
+
     return cds_w_exon_nb
 
 
