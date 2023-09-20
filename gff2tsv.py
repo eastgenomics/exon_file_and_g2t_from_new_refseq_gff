@@ -272,7 +272,7 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, refseq_chrom, output_
                 feature_nb = data[feature][0].id.split("-")[-1]
 
                 data_to_write.append([
-                    refseq_chrom[feature.seqid], feature.start - 1 - flank,
+                    refseq_chrom[feature.chrom], feature.start - 1 - flank,
                     feature.end + flank, hgnc_id, transcript, feature_nb
                 ])
 
