@@ -170,7 +170,7 @@ def filter_out_features(feature, refseq_chrom):
     """
 
     # check if the feature chrom is a refseq chrom
-    if feature.seqid not in refseq_chrom:
+    if feature.chrom not in refseq_chrom:
         return False
 
     # get the hgnc id from the attributes column
