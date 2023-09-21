@@ -48,8 +48,10 @@ chrom   start   end HGNC:ID Refseq_transcript_id    exon_nb
 ## Second script, refseq_g2t
 
 > [!WARNING]
-> RELEASE 1.2.0 HAS UPDATED THE FIRST SCRIPT (gff2tsv) BUT NOT THE SECOND (refseq_g2t)
+> Release 1.2.0 has updated the first script(gff2tsv) but not the second (refseq_g2t)
 > this version of the refseq_g2t script may not work with the new version of gff2tsv
+>
+> Please use with caution. Testing and validation will be needed before use with new gff2tsv script v1.2.0.
 
 Script to check that g2t from new refseq gff is correct and generate a g2t from exon file from gff2tsv
 
