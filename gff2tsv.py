@@ -6,8 +6,9 @@ import gffutils
 from natsort import natsorted
 import pandas as pd
 
+
 def set_chromosome_numbers(genome_build):
-    """ 
+    """
     Replace the RefSeq chromosome numbers with numerical values for chromosomes
     based on the genome build.
     Args:
@@ -15,7 +16,7 @@ def set_chromosome_numbers(genome_build):
 
     Returns:
         refseq_chrom (dict): Dictionary mapping RefSeq chromosome numbers to
-                                simple numeric values for chromosomes 
+                                simple numeric values for chromosomes
     """
 
     if genome_build == "37":
