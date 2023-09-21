@@ -224,7 +224,8 @@ def get_transcripts_to_remove(db, data):
     return transcripts_to_remove
 
 
-def write_tsv(db, data, transcripts_to_remove, gff, flank, refseq_chrom, output_name=None):
+def write_tsv(db, data, transcripts_to_remove, gff, flank, refseq_chrom,
+        output_name=None):
     """ Write tsv
 
     Args:
