@@ -29,10 +29,10 @@ CDS not gathered:
 
 ### How to run
 
-Tested only with a Refseq gff file
+Tested only with a Refseq gff file. Genome build should be input as '37' or '38'.
 
 ```bash
-python gff2tsv.py ${gff_file} [ -f ${flank} -o ${output_name} ]
+python gff2tsv.py ${gff_file} -f ${flank} -o ${output_name} -b ${genome_build}
 ```
 
 ### Outputs
@@ -46,6 +46,12 @@ chrom   start   end HGNC:ID Refseq_transcript_id    exon_nb
 ```
 
 ## Second script, refseq_g2t
+
+> [!WARNING]
+> Release 1.2.0 has updated the first script (gff2tsv) but not the second (refseq_g2t)
+> this version of the refseq_g2t script may not work with the new version of gff2tsv
+>
+> Please use with caution. Testing and validation will be needed before use with new gff2tsv script v1.2.0.
 
 Script to check that g2t from new refseq gff is correct and generate a g2t from exon file from gff2tsv
 

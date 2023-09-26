@@ -7,17 +7,47 @@ from natsort import natsorted
 import pandas as pd
 
 
-# replace refseq chrom by "normal" chrom names
-refseq_chrom = {
-    "NC_000001.10": "1", "NC_000002.11": "2", "NC_000003.11": "3",
-    "NC_000004.11":	"4", "NC_000005.9": "5", "NC_000006.11": "6",
-    "NC_000007.13": "7", "NC_000008.10": "8", "NC_000009.11": "9",
-    "NC_000010.10": "10", "NC_000011.9": "11", "NC_000012.11": "12",
-    "NC_000013.10": "13", "NC_000014.8": "14", "NC_000015.9": "15",
-    "NC_000016.9": "16", "NC_000017.10": "17", "NC_000018.9": "18",
-    "NC_000019.9": "19", "NC_000020.10": "20", "NC_000021.8": "21",
-    "NC_000022.10": "22", "NC_000023.10": "X", "NC_000024.9": "Y"
-}
+def set_chromosome_numbers(genome_build):
+    """
+    Replace the RefSeq chromosome numbers with numerical values for chromosomes
+    based on the genome build.
+    Args:
+        genome_build (str): Genome build of RefSeq gff
+
+    Returns:
+        refseq_chrom (dict): Dictionary mapping RefSeq chromosome numbers to
+                                simple numeric values for chromosomes
+    """
+
+    if genome_build == "37":
+        refseq_chrom = {
+            "NC_000001.10": "1", "NC_000002.11": "2", "NC_000003.11": "3",
+            "NC_000004.11":	"4", "NC_000005.9": "5", "NC_000006.11": "6",
+            "NC_000007.13": "7", "NC_000008.10": "8", "NC_000009.11": "9",
+            "NC_000010.10": "10", "NC_000011.9": "11", "NC_000012.11": "12",
+            "NC_000013.10": "13", "NC_000014.8": "14", "NC_000015.9": "15",
+            "NC_000016.9": "16", "NC_000017.10": "17", "NC_000018.9": "18",
+            "NC_000019.9": "19", "NC_000020.10": "20", "NC_000021.8": "21",
+            "NC_000022.10": "22", "NC_000023.10": "X", "NC_000024.9": "Y"
+        }
+    elif genome_build == "38":
+        refseq_chrom = {
+            "NC_000001.11": "1", "NC_000002.12": "2", "NC_000003.12": "3",
+            "NC_000004.12":	"4", "NC_000005.10": "5", "NC_000006.12": "6",
+            "NC_000007.14": "7", "NC_000008.11": "8", "NC_000009.12": "9",
+            "NC_000010.11": "10", "NC_000011.10": "11", "NC_000012.12": "12",
+            "NC_000013.11": "13", "NC_000014.9": "14", "NC_000015.10": "15",
+            "NC_000016.10": "16", "NC_000017.11": "17", "NC_000018.10": "18",
+            "NC_000019.10": "19", "NC_000020.11": "20", "NC_000021.9": "21",
+            "NC_000022.11": "22", "NC_000023.11": "X", "NC_000024.10": "Y"
+        }
+    else:
+        print('''
+            Genome build not given as '37' or '38'. Unable to map RefSeq
+            chromosome numbers (e.g. NC_000001.10) to simple chromosome numbers
+            (e.g. 1)
+              ''')
+    return refseq_chrom
 
 
 def parse_gff(gff):
@@ -43,7 +73,7 @@ def parse_gff(gff):
     return db
 
 
-def get_parents2features(db, feature_type):
+def get_parents2features(db, feature_type, refseq_chrom):
     """ Get a dict of parent of feature type with its children
 
     Args:
@@ -71,7 +101,7 @@ def get_parents2features(db, feature_type):
             continue
 
         # filter features that don't have one HGNC id or have contig chrom
-        if filter_out_features(feature):
+        if filter_out_features(feature, refseq_chrom):
             parent = feature.attributes["Parent"][0]
             parents2features.setdefault(parent, []).append(feature)
 
@@ -89,7 +119,7 @@ def infer_exon_number(parents2cds, parents2exons):
         dict: cds2exon dict
     """
 
-    print("Infering exon number for the CDS...")
+    print("Inferring exon number for the CDS...")
 
     cds_w_exon_nb = {}
 
@@ -128,7 +158,7 @@ def infer_exon_number(parents2cds, parents2exons):
     return cds_w_exon_nb
 
 
-def filter_out_features(feature):
+def filter_out_features(feature, refseq_chrom):
     """ Filter out features that have:
         - contig chrom
         - have no or multiple HGNC ids
@@ -194,7 +224,8 @@ def get_transcripts_to_remove(db, data):
     return transcripts_to_remove
 
 
-def write_tsv(db, data, transcripts_to_remove, gff, flank, output_name=None):
+def write_tsv(db, data, transcripts_to_remove, gff, flank, refseq_chrom,
+              output_name=None):
     """ Write tsv
 
     Args:
@@ -260,14 +291,16 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, output_name=None):
             f.write("\n")
 
 
-def main(gff, flank, output_name):
+def main(build, gff, flank, output_name):
+    refseq_chrom = set_chromosome_numbers(build)
     gff_db = parse_gff(gff)
-    parents2exons = get_parents2features(gff_db, "exon")
-    parents2cds = get_parents2features(gff_db, "CDS")
+    parents2exons = get_parents2features(gff_db, "exon", refseq_chrom)
+    parents2cds = get_parents2features(gff_db, "CDS", refseq_chrom)
     cds_exon_nb = infer_exon_number(parents2cds, parents2exons)
     transcripts_to_remove = get_transcripts_to_remove(gff_db, cds_exon_nb)
     write_tsv(
-        gff_db, cds_exon_nb, transcripts_to_remove, gff, flank, output_name
+        gff_db, cds_exon_nb, transcripts_to_remove, gff, flank, refseq_chrom,
+        output_name
     )
 
 
@@ -280,5 +313,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "-o", "--output_name", help="Name of the output tsv file"
     )
+    parser.add_argument(
+        "-b", "--build", help="Genome build of RefSeq GFF"
+    )
     args = parser.parse_args()
-    main(args.gff, args.flank, args.output_name)
+    main(args.build, args.gff, args.flank, args.output_name)
