@@ -2,12 +2,12 @@
 
 ## First script, gff2tsv
 
-Script to convert refseq GFF to TSV using CDS.
+Script to convert RefSeq GFF to TSV using CDS.
 
 Info on the file:
 
 - coordinates get converted from 1-based to 0-based format.
-- exon number is infered using cds and exon coordinates (any overlap size)
+- exon number is inferred using cds and exon coordinates (any overlap size)
 
 CDS not gathered:
 
@@ -29,20 +29,30 @@ CDS not gathered:
 
 ### How to run
 
-Tested only with a Refseq gff file. Genome build should be input as '37' or '38'.
+Tested only with a Refseq gff file.
+##### Inputs:
+- `-g (file)`: RefSeq GFF file.
+- `-f (int)`: How many bp to add as flank to either side of exons.
+- `-o (str)`: Name of the output exons TSV with HGNC IDs.
+- `-s (str)`: Name of the output exons TSV with gene symbols.
+- `-b (str)`: Genome build should be input as '37' or '38'.
 
 ```bash
-python gff2tsv.py ${gff_file} -f ${flank} -o ${output_name} -b ${genome_build}
+python gff2tsv.py ${gff_file} -f ${flank} -o ${hgnc_output_name} -s ${symbols_output_name} -b ${genome_build}
 ```
 
 ### Outputs
 
-TSV file with the CDS
+One TSV file for CDS with HGNC ID and another which is identical except HGNC IDs are replaced with gene symbols.
 
-Format:
-
+##### Format:
+Exons TSV with HGNC IDs:
 ```tsv
 chrom   start   end HGNC:ID Refseq_transcript_id    exon_nb
+```
+Exons TSV with gene symbols:
+```
+chrom   start   end gene_symbol Refseq_transcript_id    exon_nb
 ```
 
 ## Second script, refseq_g2t
