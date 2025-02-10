@@ -224,24 +224,51 @@ def get_transcripts_to_remove(db, data):
     return transcripts_to_remove
 
 
-def write_tsv(db, data, transcripts_to_remove, gff, flank, refseq_chrom,
-              output_name=None):
-    """ Write tsv
+def write_sorted_data_to_file(filename, data):
+    """
+    Write sorted and filtered data from the GFF to file
+
+    Args:
+        filename (str): Name of file to write out
+        data (list): List containing data to write
+    """
+    try:
+        with open(filename, "w") as outfile:
+            for line in data:
+                str_line = [str(l) for l in line]
+                outfile.write("\t".join(str_line) + "\n")
+    except IOError as e:
+        print(f"Error writing to {filename}: {e}")
+        raise
+
+
+def write_output_tsvs(
+    db, data, transcripts_to_remove, gff, flank, refseq_chrom,
+    hgnc_output_name=None, symbol_output_name=None
+):
+    """ Write exons TSV files, one with HGNC IDs and one with gene symbols
 
     Args:
         db (gffutils.FeatureDB): FeatureDB object
         data (dict): cds2exon dict
         gff (str): Name of gff file for default name of output tsv
         flank (int): Flank to add to regions. Default is 0
-        output_name (str, optional): Output name. Defaults to None.
+        hgnc_output_name (str, optional): Output name for exons TSV with HGNC
+        IDs. Defaults to None.
+        symbol_output_name (str, optional): Output name for exons TSV with
+        gene symbols. Defaults to None.
     """
 
-    if not output_name:
+    if hgnc_output_name is None:
         path = Path(gff)
         name = str(path.name).replace(".gff", "").replace(".gz", "")
-        output_name = f"{name}.tsv"
+        hgnc_output_name = f"{name}.exon_{flank}bp.tsv"
+    if symbol_output_name is None:
+        name = str(path.name).replace(".gff", "").replace(".gz", "")
+        symbol_output_name = f"{name}.symbols.exon_{flank}bp.tsv"
 
     data_to_write = []
+    symbol_data_to_write = []
 
     print("Sorting data...")
 
@@ -256,6 +283,8 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, refseq_chrom,
         # split on ":" i.e. ["HGNC", "HGNC:1"]
         # get the last element i.e. get the actual HGNC id
         hgnc_id = hgnc_list[0].split(":", 1)[-1]
+        gene_symbols = feature.attributes.get("gene")
+        gene_symbol = ','.join(gene_symbols) if gene_symbols else "Unknown"
 
         # get the parent id and extract transcript name from it
         parent = db[feature.attributes["Parent"][0]]
@@ -268,6 +297,10 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, refseq_chrom,
                 refseq_chrom[feature.chrom], feature.start - 1 - flank,
                 feature.end + flank, hgnc_id, transcript, feature_nb
             ])
+            symbol_data_to_write.append([
+                refseq_chrom[feature.chrom], feature.start - 1 - flank,
+                feature.end + flank, gene_symbol, transcript, feature_nb
+            ])
         else:
             # some duplicated transcripts span X and Y, final decision is
             # to keep the X copy of the transcript
@@ -278,43 +311,57 @@ def write_tsv(db, data, transcripts_to_remove, gff, flank, refseq_chrom,
                     refseq_chrom[feature.chrom], feature.start - 1 - flank,
                     feature.end + flank, hgnc_id, transcript, feature_nb
                 ])
+                symbol_data_to_write.append([
+                    refseq_chrom[feature.chrom], feature.start - 1 - flank,
+                    feature.end + flank, gene_symbol, transcript, feature_nb
+                ])
 
     # sort data by chrom, start, end
     sorted_data = natsorted(data_to_write, key=lambda x: (x[0], x[1], x[2]))
+    sorted_symbol = natsorted(
+        symbol_data_to_write, key=lambda x: (x[0], x[1], x[2])
+    )
 
-    print(f"Writing in {output_name}...")
+    print(f"Writing in {hgnc_output_name}...")
+    write_sorted_data_to_file(hgnc_output_name, sorted_data)
 
-    with open(output_name, "w") as f:
-        for line in sorted_data:
-            str_line = [str(l) for l in line]
-            f.write("\t".join(str_line))
-            f.write("\n")
+    print(f"Writing in {symbol_output_name}...")
+    write_sorted_data_to_file(symbol_output_name, sorted_symbol)
 
 
-def main(build, gff, flank, output_name):
+def main(build, gff, flank, hgnc_output_name, symbols_output_name):
     refseq_chrom = set_chromosome_numbers(build)
     gff_db = parse_gff(gff)
     parents2exons = get_parents2features(gff_db, "exon", refseq_chrom)
     parents2cds = get_parents2features(gff_db, "CDS", refseq_chrom)
     cds_exon_nb = infer_exon_number(parents2cds, parents2exons)
     transcripts_to_remove = get_transcripts_to_remove(gff_db, cds_exon_nb)
-    write_tsv(
+    write_output_tsvs(
         gff_db, cds_exon_nb, transcripts_to_remove, gff, flank, refseq_chrom,
-        output_name
+        hgnc_output_name, symbols_output_name
     )
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("gff", help="Refseq GFF file to parse")
+    parser.add_argument("-g", "--gff", help="Refseq GFF file to parse")
     parser.add_argument(
         "-f", "--flank", default=0, type=int, help="Flank to add the features"
     )
     parser.add_argument(
-        "-o", "--output_name", help="Name of the output tsv file"
+        "-o", "--hgnc_output_name", help=(
+            "Name of the output TSV file with HGNC IDs"
+        )
+    )
+    parser.add_argument(
+        "-s", "--symbols_output_name", help=(
+            "Name of the output TSV file with gene symbols"
+        )
     )
     parser.add_argument(
         "-b", "--build", help="Genome build of RefSeq GFF"
     )
     args = parser.parse_args()
-    main(args.build, args.gff, args.flank, args.output_name)
+    main(
+        args.build, args.gff, args.flank, args.hgnc_output_name,
+        args.symbols_output_name
+    )
